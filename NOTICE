@@ -1,0 +1,53 @@
+Zore（零式）
+Copyright (c) 2026 Zore View contributors
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, version 3 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program (see LICENSE). If not, see <https://www.gnu.org/licenses/>.
+
+Provenance
+----------
+
+Zore View is an independent implementation. Its source code, UI drawing and
+strings were written for this project: the tree contains no code, icons,
+skins, bitmaps or strings copied from any other image viewer. Behaviour was
+compared against publicly observable applications, which copyright does not
+protect (ideas, procedures and methods of operation).
+
+Third-party components
+----------------------
+
+Zore View links the following components. Full license texts are shipped in
+`THIRD_PARTY_LICENSES/` in every release package; the source tree keeps them
+under `third_party/licenses/`.
+
+| Component | Version | License | Used for | License text |
+| --- | --- | --- | --- | --- |
+| FreeImage | 3.18.x | GPLv3 (dual: FIPL / GPLv2+) | Fallback decoding (ICO/CUR, TGA/PCX/PNM/XBM/XPM) | `FreeImage-FIPL-1.0.txt` |
+| libjpeg (IJG, bundled with FreeImage) | 9c | IJG license | JPEG path inside FreeImage | `LibJPEG-IJG.txt` |
+| LibRaw | 0.21.5 | LGPL-2.1 (used) or CDDL-1.0 (dual) | Camera RAW decoding | `LibRaw-LGPL-2.1.txt`, `LibRaw-CDDL-1.0.txt` |
+| zlib | 1.2.11 | zlib license | PSD ZIP inflate | `zlib-1.2.11.txt` |
+
+System components provided by Windows (not redistributed): Windows Imaging
+Component (WIC), Direct3D 11, Direct2D, DirectWrite, DXGI and the Windows
+Shell APIs. They are used through the operating system and are covered by the
+Windows license.
+
+Distribution notes
+------------------
+
+* FreeImage is statically linked under its **GPLv3** option (FreeImage is dual
+  licensed: FIPL or GPLv2/v3), which is compatible with this program's GPL-3.0.
+  Its license text still ships with every binary.
+* LibRaw is statically linked under LGPL-2.1 (LibRaw's LGPL-2.1 section 3 allows
+  relicensing under GPLv2-or-later, so it is compatible with GPL-3.0).
+* zlib and libjpeg require attribution and their license texts only.
+* Zore View makes no network requests and has no telemetry. See
+  `PRIVACY.md` (shipped with every release package).

@@ -1,0 +1,6 @@
+// VERSIONINFO for zoreview_cli.exe.
+#define NV_RC_FILE_DESCRIPTION "ZoreView command-line decoder"
+#define NV_RC_INTERNAL_NAME "zoreview_cli"
+#define NV_RC_ORIGINAL_FILENAME "zoreview_cli.exe"
+#define NV_RC_FILETYPE VFT_APP
+#include "../core/version_resource.inc"

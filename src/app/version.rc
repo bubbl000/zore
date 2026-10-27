@@ -1,0 +1,26 @@
+// VERSIONINFO for zoreview.exe (Explorer file properties / signing UI).
+#define NV_RC_FILE_DESCRIPTION "Zore"
+#define NV_RC_INTERNAL_NAME "zoreview"
+#define NV_RC_ORIGINAL_FILENAME "zoreview.exe"
+#define NV_RC_FILETYPE VFT_APP
+#include "../core/version_resource.inc"
+
+// V3.1-15: the empty child panel embedded at the bottom of the system
+// "Save as" dialog (OFN_ENABLETEMPLATE). Controls are created at runtime so
+// their labels follow the UI language; the size is in dialog units.
+#include <windows.h>
+// Application icon (Explorer, taskbar, Alt+Tab). Built from logo.jpg.
+#define IDI_ZOREVIEW 101
+// Title-bar logo (RCDATA: decoded by ui/app_logo.cpp through WIC).
+#define IDB_APP_LOGO 102
+IDB_APP_LOGO RCDATA "app_logo.png"
+#define IDD_SAVEAS_OPTIONS 203
+
+IDI_ZOREVIEW ICON "zoreview.ico"
+
+IDD_SAVEAS_OPTIONS DIALOGEX 0, 0, 250, 58
+STYLE DS_SETFONT | WS_CHILD
+FONT 9, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+END
+

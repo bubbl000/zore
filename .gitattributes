@@ -1,0 +1,18 @@
+* text=auto
+
+# Sources and docs keep their CRLF (Windows project; .ps1 files carry a UTF-8 BOM).
+*.ps1 text eol=crlf
+*.cpp text eol=crlf
+*.h   text eol=crlf
+*.rc  text eol=crlf
+*.iss text eol=crlf
+*.md  text eol=crlf
+
+# Binaries: never diff, never convert line endings.
+*.lib    binary
+*.dll    binary
+*.exe    binary
+*.ico    binary
+*.png    binary
+*.jpg    binary
+*.icns   binary

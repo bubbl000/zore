@@ -1,0 +1,7 @@
+// VERSIONINFO for ZoreViewThumb.dll (loaded by Explorer; signature and
+// properties must identify the handler, not the application).
+#define NV_RC_FILE_DESCRIPTION "ZoreView Explorer thumbnail handler"
+#define NV_RC_INTERNAL_NAME "ZoreViewThumb"
+#define NV_RC_ORIGINAL_FILENAME "ZoreViewThumb.dll"
+#define NV_RC_FILETYPE VFT_DLL
+#include "../core/version_resource.inc"
