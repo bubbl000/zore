@@ -38,6 +38,18 @@ powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Config Release
 依赖已随仓库提供（`third_party/`：FreeImage、LibRaw、libjpeg、zlib），无需额外下载。
 打包安装器：`tools\make_installer.ps1`（需要 Inno Setup 6）。
 
+## 开发方式
+
+本项目由 AI 与人工协作完成，如实说明：
+
+| 环节 | 分工 |
+| --- | --- |
+| **代码实现** | **AI 实现**（C++/CMake/脚本基本由大语言模型生成） |
+| **逻辑设计** | **AI 辅助**：AI 提方案与实现，**人为调整**——取舍、边界条件、踩坑修正由人决定 |
+| **UI 设计** | **人为调整**：布局、配色、间距、图标与交互细节由人定稿 |
+
+产品的判断（要什么功能、体验该是什么样、什么算"对"）由人负责；AI 负责把判断写成代码。
+
 ## 许可
 
 [GPL-3.0](LICENSE)。第三方组件许可见 [NOTICE](NOTICE) 与 `third_party/licenses/`。
@@ -49,3 +61,7 @@ powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Config Release
 It opens JPEG/PNG/APNG/GIF/WebP/TIFF/PSD/HEIC/AVIF/SVG/EXR and RAW (via LibRaw), ships a custom
 borderless UI with a thumbnail strip, EXIF panel and animation playback, makes no network requests,
 and is released under GPL-3.0. Build with `tools\build.ps1 -Config Release`.
+
+**How it is built** — the code is implemented by AI (large language models), the logic is
+AI-assisted with human review and correction, and the UI design (layout, colours, spacing,
+icons, interaction details) is adjusted by a human.
