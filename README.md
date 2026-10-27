@@ -50,6 +50,21 @@ powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Config Release
 
 产品的判断（要什么功能、体验该是什么样、什么算"对"）由人负责；AI 负责把判断写成代码。
 
+## 致谢
+
+这个软件站在开源社区的肩膀上，感谢以下项目的作者：
+
+| 项目 | 作者 / 维护者 | 用途 | 许可 |
+| --- | --- | --- | --- |
+| [FreeImage](https://freeimage.sourceforge.io/) | Hervé Drolon 与 FreeImage 贡献者 | ICO/TGA/PCX/PNM/XBM/XPM/HDR/EXR 等解码 | GPLv3 / FIPL |
+| [LibRaw](https://www.libraw.org/) | Alex Tutubalin / LibRaw LLC | 相机 RAW 解码（CR3/NEF/ARW/RAF…） | LGPL-2.1 / CDDL-1.0 |
+| [zlib](https://zlib.net/) | Jean-loup Gailly、Mark Adler | PSD 内嵌 ZIP 解压 | zlib |
+| [libjpeg](https://www.ijg.org/) | Independent JPEG Group | JPEG 编解码 | IJG |
+| [Inno Setup](https://jrsoftware.org/isinfo.php) | Jordan Russell、Martijn Laan | 生成安装程序（仅构建期） | Inno Setup License |
+
+Windows 侧使用系统自带组件，不随程序分发：WIC、Direct3D 11、Direct2D、DirectWrite、Shell API。
+界面图标为按统一网格自绘，未引入第三方图标集。
+
 ## 许可
 
 [GPL-3.0](LICENSE)。第三方组件许可见 [NOTICE](NOTICE) 与 `third_party/licenses/`。
