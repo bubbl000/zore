@@ -227,7 +227,7 @@ HRESULT DecodeWithBudget(const std::wstring& path, uint32_t cx,
         decoded.error = Error::Make(kThumbnailErrorBase, "decode failed");
       }
       // Direct2D's per-thread device must not be torn down from TLS
-      // destructors (see HANDOFF pit 68); the worker owns it and releases it
+      // destructors (see the thumbnail notes); the worker owns it and releases it
       // before exiting.
       try {
         svg::ReleaseThreadContext();

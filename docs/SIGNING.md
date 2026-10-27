@@ -58,11 +58,11 @@ powershell -ExecutionPolicy Bypass -File tools\package.ps1 -Mode installer `
 ```powershell
 # 包完整性 + SBOM + 许可证 + 签名（要求受信任）
 powershell -ExecutionPolicy Bypass -File tools\verify_package.ps1 `
-  -PackageDirectory dist\ZoreView-0.3.0-installer `
+  -PackageDirectory dist\Zore-0.3.0-installer `
   -VerifySignature -RequireSignature
 
 # 直接看签名
-Get-AuthenticodeSignature dist\ZoreView-0.3.0-installer\zoreview.exe |
+Get-AuthenticodeSignature dist\Zore-0.3.0-installer\zoreview.exe |
   Format-List Status, StatusMessage, SignerCertificate
 ```
 

@@ -16,7 +16,7 @@
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File tools\make_sbom.ps1 `
-        -ArtifactDirectory dist\ZoreView-0.3.0-portable -OutputPath dist\ZoreView-0.3.0-portable\SBOM.cdx.json
+        -ArtifactDirectory dist\Zore-0.3.0-portable -OutputPath dist\Zore-0.3.0-portable\SBOM.cdx.json
 #>
 param(
     [string]$ArtifactDirectory = '',

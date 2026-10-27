@@ -23,7 +23,7 @@
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File tools\sign.ps1 `
-        -Path dist\ZoreView-0.3.0-portable `
+        -Path dist\Zore-0.3.0-portable `
         -CertificateThumbprint 0123456789ABCDEF0123456789ABCDEF01234567 -Verify
 
 .EXAMPLE

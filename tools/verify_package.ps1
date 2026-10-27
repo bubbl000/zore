@@ -11,12 +11,12 @@
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File tools\verify_package.ps1 `
-        -PackageDirectory dist\ZoreView-0.3.0-portable
+        -PackageDirectory dist\Zore-0.3.0-portable
 
 .EXAMPLE
     # Production gate: signatures must be present and trusted.
     powershell -ExecutionPolicy Bypass -File tools\verify_package.ps1 `
-        -PackageDirectory dist\ZoreView-0.3.0-portable `
+        -PackageDirectory dist\Zore-0.3.0-portable `
         -VerifySignature -RequireSignature
 #>
 param(

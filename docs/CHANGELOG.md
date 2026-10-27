@@ -1,6 +1,6 @@
 # 更新日志
 
-版本号格式：`MAJOR.MINOR.PATCH`，里程碑记录在 HANDOFF。发布包版本取自
+版本号格式：`MAJOR.MINOR.PATCH`，里程碑记录在内部交接文档（不随仓库发布）。发布包版本取自
 `src/core/version_numbers.h`。
 
 ## 未发布 — v2.0 S3（2026-10-25，拖出到其他程序）

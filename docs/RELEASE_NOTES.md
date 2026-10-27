@@ -37,10 +37,10 @@
 
 ## 安装
 
-1. 下载 `ZoreView-0.3.0-installer.zip` 和对应的 `.sha256`，核对 zip 哈希。
+1. 下载 `Zore-0.3.0-installer.zip` 和对应的 `.sha256`，核对 zip 哈希。
 2. 解压后先运行 `Verify.cmd`，确认全部文件通过校验。
 3. 运行 `Install.cmd`（当前用户，无需管理员），按提示选择是否设为默认查看器。
-4. 便携用户解压 `ZoreView-0.3.0-portable.zip` 后直接运行 `zoreview.exe`。
+4. 便携用户解压 `Zore-0.3.0-portable.zip` 后直接运行 `zoreview.exe`。
 
 发布包应带有效的 Authenticode 签名（`Verify.cmd` 会显示提示；生产发布要求
 `SIGNATURES.txt` 中 `signed=true` 且签名状态为 Valid）。
