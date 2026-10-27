@@ -34,7 +34,7 @@
 #>
 param(
   [string]$App = '.\build\Release\zoreview.exe',
-  [string]$Samples = 'E:\修图\lily\8.2莉莉 腾\r',
+  [string]$Samples = '',   # 必填：指向自备 RAW 样本目录（如 D:\raw-samples）
   [int]$Count = 4,
   [string]$Out = '',
   [double]$MaxSwitchMs = 150.0,

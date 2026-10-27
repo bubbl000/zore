@@ -28,3 +28,7 @@ tests/*.json
 *.log
 *.dmp
 *.pdb
+
+# Python
+__pycache__/
+*.pyc
