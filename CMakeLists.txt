@@ -313,6 +313,15 @@ target_link_libraries(zoreview_cli PRIVATE zoreview_core)
 nv_set_warnings(zoreview_cli)
 nv_copy_asan_runtime(zoreview_cli)
 
+# The test sources are kept out of the public repository (they are developed
+# locally), so every test target is guarded: a clone without tests/ still
+# configures and builds the application. Pass -DNV_BUILD_TESTS=OFF to skip
+# them even when the directory is present.
+option(NV_BUILD_TESTS "Build the unit/regression test executables" ON)
+set(NV_HAVE_TESTS OFF)
+if(NV_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/core_cache_test.cpp")
+  set(NV_HAVE_TESTS ON)
+  message(STATUS "ZoreView: test targets enabled")
 add_executable(zoreview_tests
   tests/strip_layout_test.cpp
   tests/color_tests.cpp
@@ -414,4 +423,5 @@ target_link_libraries(zoreview_installtests PRIVATE
 )
 nv_set_warnings(zoreview_installtests)
 nv_copy_asan_runtime(zoreview_installtests)
+endif()  # NV_HAVE_TESTS
 
