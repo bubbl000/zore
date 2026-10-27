@@ -14,10 +14,12 @@ import os
 
 here = os.path.dirname(os.path.abspath(__file__))
 repo = os.path.dirname(here)                 # .../new
-root = os.path.dirname(repo)                 # project root (logo.jpg lives here)
-src_path = os.path.join(root, "logo.jpg")
+src_path = os.path.join(repo, "assets", "logo.jpg")
 if not os.path.exists(src_path):
-    raise SystemExit("logo.jpg not found at " + src_path)
+    # Development checkout: the source artwork also lives one level above.
+    src_path = os.path.join(os.path.dirname(repo), "logo.jpg")
+if not os.path.exists(src_path):
+    raise SystemExit("assets/logo.jpg not found")
 
 src = Image.open(src_path).convert("RGB")
 # 4x upsample keeps the diagonal edges clean when the ICO writer downsizes.
@@ -29,7 +31,7 @@ ImageDraw.Draw(mask).rounded_rectangle([0, 0, 1023, 1023],
 master = big.convert("RGBA")
 master.putalpha(mask)
 
-master.resize((512, 512), Image.LANCZOS).save(os.path.join(root, "logo.png"))
+master.resize((512, 512), Image.LANCZOS).save(os.path.join(repo, "assets", "logo.png"))
 ico_path = os.path.join(repo, "src", "app", "zoreview.ico")
 master.save(ico_path, format="ICO",
             sizes=[(16, 16), (20, 20), (24, 24), (32, 32), (40, 40), (48, 48),
@@ -37,5 +39,5 @@ master.save(ico_path, format="ICO",
 logo_png = os.path.join(repo, "src", "app", "app_logo.png")
 master.resize((64, 64), Image.LANCZOS).save(logo_png)
 print("wrote", ico_path, os.path.getsize(ico_path), "bytes")
-print("wrote", os.path.join(root, "logo.png"))
+print("wrote", os.path.join(repo, "assets", "logo.png"))
 print("wrote", logo_png, os.path.getsize(logo_png), "bytes")
