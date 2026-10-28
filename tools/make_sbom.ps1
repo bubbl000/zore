@@ -59,7 +59,7 @@ $dllHash = Get-Sha256 $dll
 
 $freeImageLib = Join-Path $root 'third_party\lib\freeimage.lib'
 $libRawLib = Join-Path $root 'third_party\lib\libraw.lib'
-$jpegLib = Join-Path $root 'third_party\lib\zoreview_jpeg.lib'
+$jpegLib = Join-Path $root 'third_party\lib\libjpeg.lib'
 $freeImageHash = Get-Sha256 $freeImageLib
 $libRawHash = Get-Sha256 $libRawLib
 $jpegHash = Get-Sha256 $jpegLib
@@ -118,7 +118,7 @@ $components = @(
         licenses = @([ordered]@{ license = [ordered]@{ id = 'IJG' } })
         hashes = @([ordered]@{ alg = 'SHA-256'; content = $jpegHash })
         properties = @(
-            [ordered]@{ name = 'zoreview:path'; value = 'third_party/lib/zoreview_jpeg.lib' },
+            [ordered]@{ name = 'zoreview:path'; value = 'third_party/lib/libjpeg.lib' },
             [ordered]@{ name = 'zoreview:usage'; value = 'JPEG codec inside the FreeImage archive' }
         )
     },
