@@ -22,6 +22,11 @@ constexpr wchar_t kZoreViewRoot[] = L"Software\\ZoreView";
 constexpr wchar_t kApprovedKey[] =
     L"Software\\Microsoft\\Windows\\CurrentVersion\\Shell Extensions\\Approved";
 
+// ShellEx {BB2E617C-...}: IExtractIconW. Sizes up to 96 px come through the
+// icon pipeline, so the same handler is registered here as well.
+constexpr wchar_t kIconHandlerShellExGuidText[] =
+    L"{BB2E617C-0920-11d1-9A0B-00C04FC2D6C1}";
+
 constexpr wchar_t kHadPreviousValue[] = L"HadPrevious";
 constexpr wchar_t kCreatedKeyValue[] = L"CreatedKey";
 constexpr wchar_t kPreviousValue[] = L"Previous";
@@ -33,6 +38,11 @@ std::wstring ClassesKey(const std::wstring& extension) {
 std::wstring ShellExKey(const std::wstring& extension) {
   return ClassesKey(extension) + L"\\ShellEx\\" +
          kThumbnailHandlerShellExGuidText;
+}
+
+std::wstring IconShellExKey(const std::wstring& extension) {
+  return ClassesKey(extension) + L"\\ShellEx\\" +
+         kIconHandlerShellExGuidText;
 }
 
 std::wstring BackupKey(const std::wstring& extension) {
@@ -286,6 +296,10 @@ HRESULT RegisterThumbnailProvider(
       hr = WriteStringValue(root, ShellExKey(extension), nullptr,
                             kThumbnailProviderClsidText);
     }
+    if (SUCCEEDED(hr)) {
+      hr = WriteStringValue(root, IconShellExKey(extension), nullptr,
+                            kThumbnailProviderClsidText);
+    }
     if (FAILED(hr)) {
       if (SUCCEEDED(first_error)) first_error = hr;
     } else {
@@ -303,6 +317,7 @@ HRESULT UnregisterThumbnailProvider(nv::platform::RegistryScope scope) {
   for (const std::wstring& extension : ThumbnailExtensions()) {
     const HRESULT hr = RestoreExtension(root, extension);
     if (FAILED(hr) && SUCCEEDED(first_error)) first_error = hr;
+    (void)DeleteTree(root, IconShellExKey(extension));
   }
 
   (void)DeleteTree(root, kBackupRoot);

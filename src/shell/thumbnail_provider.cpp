@@ -2,10 +2,12 @@
 
 #include "core/format_router.h"
 #include "core/image.h"
+#include "decoders/libraw_decoder.h"
 #include "decoders/svg_decoder.h"
 #include "shell/module_state.h"
 
 #include <objbase.h>
+#include <shlobj.h>
 #include <shobjidl.h>
 #include <thumbcache.h>
 #include <wrl/client.h>
@@ -87,7 +89,8 @@ void Trace(const std::wstring& message) {
 std::vector<uint8_t> ScaleStraightBgra(const uint8_t* source, uint32_t width,
                                        uint32_t height, uint32_t stride,
                                        uint32_t target_width,
-                                       uint32_t target_height) {
+                                       uint32_t target_height,
+                                       bool has_alpha) {
   std::vector<uint8_t> destination(
       static_cast<size_t>(target_width) * target_height * 4u);
   for (uint32_t y = 0; y < target_height; ++y) {
@@ -114,7 +117,9 @@ std::vector<uint8_t> ScaleStraightBgra(const uint8_t* source, uint32_t width,
         const uint8_t* row = source + static_cast<size_t>(sy) * stride;
         for (uint32_t sx = x0; sx < x1; ++sx) {
           const uint8_t* pixel = row + static_cast<size_t>(sx) * 4u;
-          const uint64_t alpha = pixel[3];
+          // Opaque sources carry no meaningful alpha byte (it is often 0), so
+          // treating it as coverage painted the thumbnail black.
+          const uint64_t alpha = has_alpha ? pixel[3] : 255u;
           sum_b += pixel[0] * alpha;
           sum_g += pixel[1] * alpha;
           sum_r += pixel[2] * alpha;
@@ -145,9 +150,21 @@ std::vector<uint8_t> ScaleStraightBgra(const uint8_t* source, uint32_t width,
 // Shell composites thumbnails itself and does not want premultiplied data.
 HRESULT CreateThumbnailBitmap(const Image& image, UINT cx, HBITMAP* bitmap,
                               WTS_ALPHATYPE* alpha_type) {
-  const uint32_t width = image.info.width;
-  const uint32_t height = image.info.height;
+  uint32_t width = image.info.width;
+  uint32_t height = image.info.height;
   if (width == 0 || height == 0 || image.pixels.empty()) return E_FAIL;
+
+  // The decoded buffer can be shorter than width*height (a tier/preview buffer
+  // whose rows were cropped): copying width*height rows then leaves the missing
+  // tail black, which Explorer shows as a black band under the picture. Trust the
+  // buffer size over the metadata.
+  const uint32_t stride =
+      image.info.stride >= width * 4u ? image.info.stride : width * 4u;
+  const size_t rows_available = image.pixels.size() / stride;
+  if (rows_available < height) {
+    height = static_cast<uint32_t>(rows_available);
+  }
+  if (height == 0) return E_FAIL;
 
   uint32_t target_width = width;
   uint32_t target_height = height;
@@ -157,14 +174,21 @@ HRESULT CreateThumbnailBitmap(const Image& image, UINT cx, HBITMAP* bitmap,
         1, static_cast<uint64_t>(height) * cx / width));
   }
 
-  const uint32_t stride =
-      image.info.stride != 0 ? image.info.stride : width * 4u;
+  if (TraceEnabled()) {
+    Trace(L"bmp meta=" + std::to_wstring(image.info.width) + L"x" +
+          std::to_wstring(image.info.height) + L" stride=" +
+          std::to_wstring(stride) + L" bytes=" +
+          std::to_wstring(image.pixels.size()) + L" alpha=" +
+          (image.info.has_alpha ? L"1" : L"0") + L" target=" +
+          std::to_wstring(target_width) + L"x" +
+          std::to_wstring(target_height));
+  }
   std::vector<uint8_t> scaled;
   const uint8_t* pixels = image.pixels.data();
   uint32_t source_stride = stride;
   if (target_width != width || target_height != height) {
     scaled = ScaleStraightBgra(pixels, width, height, stride, target_width,
-                               target_height);
+                               target_height, image.info.has_alpha);
     pixels = scaled.data();
     source_stride = target_width * 4u;
   }
@@ -220,7 +244,18 @@ HRESULT DecodeWithBudget(const std::wstring& path, uint32_t cx,
       HRESULT com = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
       DecodeResult decoded;
       try {
-        decoded = FormatRouter::Decode(path, options);
+        // RAW: use the camera's embedded JPEG preview. It is the framing and the
+        // colour the camera (and every other viewer) shows, while the half-size
+        // LibRaw decode of some bodies leaves the last rows unfilled - that is the
+        // black band and the "shifted" look Explorer showed. Preview decoding is
+        // also far cheaper (10-30 ms vs 400+ ms), which is what a thumbnail needs.
+        const ImageFormat format = FormatRouter::Detect(path);
+        if (format == ImageFormat::kRaw && libraw::Available()) {
+          decoded = libraw::DecodeEmbeddedPreview(path);
+        }
+        if (!decoded.ok()) {
+          decoded = FormatRouter::Decode(path, options);
+        }
       } catch (const std::bad_alloc&) {
         decoded.error = Error::Make(kThumbnailErrorBase, "out of memory");
       } catch (...) {
@@ -256,9 +291,35 @@ HRESULT DecodeWithBudget(const std::wstring& path, uint32_t cx,
   return S_OK;
 }
 
+// Wraps a 32bpp top-down DIB into an HICON. Windows uses the alpha channel of
+// the colour bitmap when it is 32bpp, so an all-zero 1bpp mask keeps the pixels
+// and their transparency intact.
+HICON IconFromBitmap(HBITMAP colour) {
+  if (colour == nullptr) return nullptr;
+  BITMAP description{};
+  if (GetObjectW(colour, sizeof(description), &description) == 0) return nullptr;
+  const int width = description.bmWidth;
+  const int height = std::abs(description.bmHeight);
+  if (width <= 0 || height <= 0) return nullptr;
+  HBITMAP mask = CreateBitmap(width, height, 1, 1, nullptr);
+  if (mask == nullptr) return nullptr;
+  ICONINFO info{};
+  info.fIcon = TRUE;
+  info.hbmMask = mask;
+  info.hbmColor = colour;
+  HICON icon = CreateIconIndirect(&info);
+  DeleteObject(mask);
+  return icon;
+}
+
 class ThumbnailProvider final : public IThumbnailProvider,
                                 public IInitializeWithItem,
-                                public IInitializeWithFile {
+                                public IInitializeWithFile,
+                                // Explorer draws sizes up to 96 px from the
+                                // icon pipeline, not the thumbnail one, so the
+                                // same object also answers IExtractIconW.
+                                public IPersistFile,
+                                public IExtractIconW {
  public:
   ThumbnailProvider() { AddLiveObject(); }
   ~ThumbnailProvider() { ReleaseLiveObject(); }
@@ -278,6 +339,10 @@ class ThumbnailProvider final : public IThumbnailProvider,
       *object = static_cast<IInitializeWithItem*>(this);
     } else if (IsEqualIID(riid, IID_IInitializeWithFile)) {
       *object = static_cast<IInitializeWithFile*>(this);
+    } else if (IsEqualIID(riid, IID_IPersistFile)) {
+      *object = static_cast<IPersistFile*>(this);
+    } else if (IsEqualIID(riid, IID_IExtractIconW)) {
+      *object = static_cast<IExtractIconW*>(this);
     } else {
       return E_NOINTERFACE;
     }
@@ -374,6 +439,63 @@ class ThumbnailProvider final : public IThumbnailProvider,
     }
   }
 
+  // IPersistFile: Explorer loads the icon handler with the item's path.
+  HRESULT STDMETHODCALLTYPE GetClassID(CLSID* clsid) override {
+    if (clsid == nullptr) return E_POINTER;
+    *clsid = kThumbnailProviderClsid;
+    return S_OK;
+  }
+  HRESULT STDMETHODCALLTYPE IsDirty() override { return S_FALSE; }
+  HRESULT STDMETHODCALLTYPE Load(LPCOLESTR file_name, DWORD) override {
+    if (file_name == nullptr) return E_INVALIDARG;
+    SetPath(file_name);
+    return S_OK;
+  }
+  HRESULT STDMETHODCALLTYPE Save(LPCOLESTR, BOOL) override { return E_NOTIMPL; }
+  HRESULT STDMETHODCALLTYPE SaveCompleted(LPCOLESTR) override { return S_OK; }
+  HRESULT STDMETHODCALLTYPE GetCurFile(LPOLESTR* file_name) override {
+    if (file_name != nullptr) *file_name = nullptr;
+    return E_NOTIMPL;
+  }
+
+  // IExtractIconW: sizes <= 96 px come through this interface (Explorer's
+  // "medium" and "large" icon views), so the picture has to be drawn here too.
+  HRESULT STDMETHODCALLTYPE GetIconLocation(UINT, LPWSTR file_name,
+                                            UINT count, int* index,
+                                            UINT* flags) override {
+    if (file_name == nullptr || index == nullptr || flags == nullptr) {
+      return E_POINTER;
+    }
+    if (count > 0) file_name[0] = L'\0';
+    *index = 0;
+    *flags = GIL_NOTFILENAME;  // the icon comes from GetIcon, not a file
+    // S_OK is required here: S_FALSE makes the shell skip Extract().
+    return S_OK;
+  }
+
+  HRESULT STDMETHODCALLTYPE Extract(PCWSTR, UINT, HICON* large, HICON* small_icon,
+                                    UINT size) override {
+    if (large != nullptr) *large = nullptr;
+    if (small_icon != nullptr) *small_icon = nullptr;
+    const UINT edge = std::clamp<UINT>(LOWORD(size) != 0 ? LOWORD(size) : 32u, 16,
+                                       kMaxThumbnailEdge);
+    DecodeResult decoded;
+    if (FAILED(DecodeWithBudget(path_, edge, &decoded)) || !decoded.ok()) {
+      return S_FALSE;  // fall back to the generic file icon
+    }
+    HBITMAP colour = nullptr;
+    WTS_ALPHATYPE alpha = WTSAT_UNKNOWN;
+    if (FAILED(CreateThumbnailBitmap(*decoded.image, edge, &colour, &alpha)) ||
+        colour == nullptr) {
+      return S_FALSE;
+    }
+    HICON icon = IconFromBitmap(colour);
+    DeleteObject(colour);
+    if (icon == nullptr) return S_FALSE;
+    if (large != nullptr) *large = icon;
+    if (small_icon != nullptr) *small_icon = CopyIcon(icon);
+    return S_OK;
+  }
  private:
   void SetPath(const wchar_t* path) {
     AcquireSRWLockExclusive(&path_lock_);

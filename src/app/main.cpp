@@ -36,6 +36,7 @@
 #include "platform/input_dialog.h"
 #include "platform/installer.h"
 #include "platform/log.h"
+#include "shell/thumbnail_registry.h"
 #include "platform/paths.h"
 #include "platform/save_service.h"
 #include "platform/screenshot.h"
@@ -10866,7 +10867,58 @@ std::filesystem::path ExecutablePath() {
   buffer.resize(length);
   return std::filesystem::path(buffer);
 }
+// The Explorer thumbnail provider ships as a sibling DLL; registration is a no-op
+// when the build has no shell module (portable/dev layouts).
+std::filesystem::path ThumbnailDllPath() {
+  const std::filesystem::path exe = ExecutablePath();
+  if (exe.empty()) return {};
+  std::error_code ec;
+  const std::filesystem::path dll = exe.parent_path() / L"ZoreViewThumb.dll";
+  if (!std::filesystem::is_regular_file(dll, ec) || ec) return {};
+  return dll;
+}
 
+// Registers the thumbnail provider that lives next to the executable. Returns
+// false only when a DLL exists and registration failed.
+bool RegisterThumbnailProviderNextToExe(nv::platform::RegistryScope scope,
+                                        std::wstring* error) {
+  const std::filesystem::path dll = ThumbnailDllPath();
+  if (dll.empty()) return true;
+  // Register through regsvr32 (the DLL's own DllRegisterServer) instead of
+  // duplicating its registry writes in the exe: that is the documented entry
+  // point and it needs no elevation for a per-user install.
+  (void)scope;
+  std::wstring command = L"regsvr32.exe /s \"" + dll.wstring() + L"\"";
+  STARTUPINFOW startup{};
+  startup.cb = sizeof(startup);
+  PROCESS_INFORMATION process{};
+  if (!CreateProcessW(nullptr, command.data(), nullptr, nullptr, FALSE,
+                      CREATE_NO_WINDOW, nullptr, nullptr, &startup, &process)) {
+    if (error != nullptr) {
+      wchar_t line[160]{};
+      std::swprintf(line, 160, L"cannot start regsvr32 (error %lu)",
+                    static_cast<unsigned long>(GetLastError()));
+      *error = line;
+    }
+    return false;
+  }
+  WaitForSingleObject(process.hProcess, 30000);
+  DWORD code = 1;
+  GetExitCodeProcess(process.hProcess, &code);
+  CloseHandle(process.hThread);
+  CloseHandle(process.hProcess);
+  if (code != 0) {
+    if (error != nullptr) {
+      wchar_t line[160]{};
+      std::swprintf(line, 160, L"regsvr32 failed (exit %lu)",
+                    static_cast<unsigned long>(code));
+      *error = line;
+    }
+    return false;
+  }
+  nv::platform::LogInfo("registered thumbnail provider");
+  return true;
+}
 bool SaveWallpaperBmp(const nv::Image& image, std::wstring* error) {
   const std::filesystem::path directory =
       nv::platform::DataDir() / L"wallpaper";
@@ -11064,6 +11116,10 @@ int RunHeadlessAction(const HeadlessRequest& request) {
                             std::to_string(
                                 nv::platform::ShellVerbExtensionCount()) +
                             " extensions");
+      if (!RegisterThumbnailProviderNextToExe(request.scope, &error)) {
+        nv::platform::LogError(Narrow(error));
+        return 1;
+      }
       return 0;
     }
     case HeadlessAction::kUnregisterShell: {

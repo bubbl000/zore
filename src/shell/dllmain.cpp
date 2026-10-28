@@ -114,7 +114,15 @@ extern "C" HRESULT WINAPI DllGetClassObject(REFCLSID clsid, REFIID riid,
                                             void** object) {
   if (object == nullptr) return E_POINTER;
   *object = nullptr;
-  if (!IsEqualCLSID(clsid, nv::shell::kThumbnailProviderClsid)) {
+  // Compatibility alias: the 0.1 .NET handler (ThumbnailHandler.PsdThumbnailHandler)
+  // is still registered per-machine for Photoshop documents on some installs, but
+  // its assembly is gone, so the shell fails with REGDB_E_CLASSNOTREG before it
+  // ever reaches us. The per-user registration points that CLSID at this module, so
+  // answer it instead of returning CLASS_E_CLASSNOTAVAILABLE.
+  constexpr CLSID kLegacyPsdHandlerClsid = {
+      0xa7b3c9d2, 0xe4f5, 0x4a6b, {0x8c, 0x7d, 0x9e, 0x0f, 0x1a, 0x2b, 0x3c, 0x4d}};
+  if (!IsEqualCLSID(clsid, nv::shell::kThumbnailProviderClsid) &&
+      !IsEqualCLSID(clsid, kLegacyPsdHandlerClsid)) {
     return CLASS_E_CLASSNOTAVAILABLE;
   }
   if (!IsEqualIID(riid, IID_IUnknown) && !IsEqualIID(riid, IID_IClassFactory)) {
