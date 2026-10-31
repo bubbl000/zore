@@ -153,6 +153,10 @@ struct UiInputs {
   Rect strip_tooltip_anchor;
   // Previous/next circles in the image area (規劃/22/09 §5.1).
   bool arrows_visible = false;
+  // Reveal state of the two circles: 1 = resting, 0 = slid away and invisible
+  // (fades out when the pointer leaves the window or idles for five seconds).
+  float arrows_opacity = 1.0f;
+  float arrows_slide = 0.0f;
 
   bool percent_available = false;
   bool info_available = false;

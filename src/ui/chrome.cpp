@@ -277,7 +277,7 @@ void Chrome::DrawImageArrows(ID2D1DeviceContext* context, UiContext& ui,
     return;
   }
   const LayoutFrame& layout = *state.layout;
-  if (!layout.arrows_visible) return;
+  if (!layout.arrows_visible || layout.arrows_opacity <= 0.01f) return;
   const ColorTokens& colors = *state.colors;
   const float s = layout.dpi_scale;
   const struct {
@@ -293,7 +293,8 @@ void Chrome::DrawImageArrows(ID2D1DeviceContext* context, UiContext& ui,
   for (const auto& arrow : kArrows) {
     if (arrow.rect->empty()) continue;
     const bool hovered = state.hover == arrow.id;
-    const float opacity = hovered ? 1.0f : metrics::kArrowRestOpacity;
+    const float opacity =
+        (hovered ? 1.0f : metrics::kArrowRestOpacity) * layout.arrows_opacity;
     // A small filled disc keeps the chevron readable over bright photos; the
     // border turns accent on hover without moving the geometry.
     draw::FillRoundRect(context, ui, *arrow.rect, radius,

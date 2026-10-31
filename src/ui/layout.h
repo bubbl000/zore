@@ -39,6 +39,11 @@ struct LayoutInputs {
   // Image-area previous/next circles. False without an image or with a single
   // file, so the rectangles stay empty and nothing can be clicked (22/09 §5.1).
   bool arrows_visible = false;
+  // Reveal state of the two circles: 1 = resting opacity, 0 = gone. While they
+  // fade out they also slide apart by `arrows_slide` DIP (mouse left the window,
+  // or the pointer sat still for 5 s).
+  float arrows_opacity = 1.0f;
+  float arrows_slide = 0.0f;
 
   // Capabilities. A control that is not implemented yet (S1/S2) is still laid
   // out, but it is drawn disabled and skipped by hit-testing.
@@ -75,6 +80,8 @@ struct LayoutFrame {
   Rect toast;
   Rect arrows_left;
   Rect arrows_right;
+  // Chrome multiplies the arrow colours by this; 0 means "not painted".
+  float arrows_opacity = 1.0f;
   Rect drag_hint;
   // Fullscreen reveal buttons (v3.0, 規劃/26 §2.7). Empty unless fullscreen and
   // the reveal is visible; the hit test reads `fullscreen_reveal_visible`.

@@ -339,6 +339,18 @@ double g_fs_reveal_hide_at_ms = 0.0;
 double g_fs_reveal_tick_ms = 0.0;
 constexpr double kFsRevealIdleMs = 3000.0;
 constexpr double kFsRevealFadeMs = 160.0;
+// --- arrow reveal (mouse left the window, or five idle seconds) -------------
+// The two circles slide apart by kArrowSlideDip while their opacity goes 1 -> 0
+// over kArrowFadeMs. Any pointer movement, wheel, click or key brings them back.
+constexpr UINT kArrowIdleMs = 5000;
+constexpr double kArrowFadeMs = 200.0;
+constexpr float kArrowSlideDip = 16.0f;
+float g_arrow_opacity = 1.0f;
+float g_arrow_target = 1.0f;
+double g_arrow_fade_tick_ms = 0.0;
+double g_arrow_last_activity_ms = 0.0;
+// Set while the pointer is over the client area (WM_MOUSELEAVE clears it).
+bool g_arrow_pointer_inside = true;
 // --- v2.0 S2 / 22/12: animation frame pill --------------------------------
 // The pill dims to 35% after two idle seconds and returns to full opacity on
 // the next mouse move; only the opacity animates (規劃/22/12 §3.1).
@@ -507,6 +519,10 @@ uint32_t g_pending_edge = 0;
 // for would only delay it).
 constexpr UINT_PTR kThumbPrewarmTimer = 37;
 constexpr UINT_PTR kThumbPrewarmStepTimer = 38;
+// Prev/next circle reveal: one timer drives the 200 ms fade/slide, the other
+// fires five seconds after the last input.
+constexpr UINT_PTR kArrowFadeTimer = 39;
+constexpr UINT_PTR kArrowIdleTimer = 40;
 constexpr int kThumbPrewarmRadius = 6;
 constexpr UINT kThumbPrewarmDelayMs = 400;
 constexpr UINT kThumbPrewarmStepMs = 40;
@@ -2119,6 +2135,76 @@ void TickFullscreenReveal(HWND hwnd) {
 }
 
 
+// --- arrow reveal ----------------------------------------------------------
+void ArrowLog(const char* state, const char* reason, double extra_ms) {
+  char line[160]{};
+  if (extra_ms > 0.0) {
+    std::snprintf(line, sizeof(line), "ui: arrows=%s reason=%s ms=%.0f", state,
+                  reason, extra_ms);
+  } else {
+    std::snprintf(line, sizeof(line), "ui: arrows=%s reason=%s", state, reason);
+  }
+  nv::platform::LogInfo(line);
+}
+
+// Restarts the five-second idle deadline. Cheap enough for every WM_MOUSEMOVE:
+// SetTimer on the same id just moves the deadline.
+void ArmArrowIdle(HWND hwnd) {
+  g_arrow_last_activity_ms = NowMs();
+  if (hwnd != nullptr) SetTimer(hwnd, kArrowIdleTimer, kArrowIdleMs, nullptr);
+}
+
+void StartArrowFade(HWND hwnd) {
+  if (hwnd == nullptr) return;
+  g_arrow_fade_tick_ms = NowMs();
+  SetTimer(hwnd, kArrowFadeTimer, 16, nullptr);
+}
+
+// Any input: show the circles again and restart the idle countdown.
+void ShowArrows(HWND hwnd, const char* reason) {
+  const bool was_gone = g_arrow_target <= 0.0f || g_arrow_opacity <= 0.999f;
+  g_arrow_pointer_inside = true;
+  ArmArrowIdle(hwnd);
+  if (!was_gone) return;
+  g_arrow_target = 1.0f;
+  ArrowLog("show", reason, 0.0);
+  StartArrowFade(hwnd);
+}
+
+// The pointer left the client area, or it has been still for five seconds.
+void HideArrows(HWND hwnd, const char* reason) {
+  if (g_arrow_target <= 0.0f) return;
+  g_arrow_target = 0.0f;
+  ArrowLog("hide", reason, 0.0);
+  StartArrowFade(hwnd);
+}
+
+void TickArrowFade(HWND hwnd) {
+  const double now = NowMs();
+  const double dt = std::max(0.0, now - g_arrow_fade_tick_ms);
+  g_arrow_fade_tick_ms = now;
+  const float step = static_cast<float>(dt / kArrowFadeMs);
+  const bool was_visible = g_arrow_opacity > 0.001f;
+  if (g_arrow_opacity < g_arrow_target) {
+    g_arrow_opacity = std::min(g_arrow_target, g_arrow_opacity + step);
+  } else if (g_arrow_opacity > g_arrow_target) {
+    g_arrow_opacity = std::max(g_arrow_target, g_arrow_opacity - step);
+  }
+  const bool visible = g_arrow_opacity > 0.001f;
+  // The rectangles always exist; crossing zero only changes painting and hit
+  // testing, so a plain input refresh is enough (same rule as the fs reveal).
+  RefreshUi(hwnd, was_visible != visible);
+  InvalidateRect(hwnd, nullptr, FALSE);
+  if (g_arrow_opacity <= 0.001f && g_arrow_target <= 0.0f) {
+    g_arrow_opacity = 0.0f;
+    KillTimer(hwnd, kArrowFadeTimer);
+    ArrowLog("hidden", "fade", 0.0);
+  } else if (g_arrow_opacity >= 0.999f && g_arrow_target >= 1.0f) {
+    g_arrow_opacity = 1.0f;
+    KillTimer(hwnd, kArrowFadeTimer);
+  }
+}
+
 // Restarts the 500 ms tooltip countdown whenever the hovered slot changes. The
 // pointer coordinate is already client-relative.
 void SyncStripHover(HWND hwnd, float x, float y) {
@@ -2459,9 +2545,14 @@ void BuildUiInputs() {
   // folder, or when the wrap policy can leave the folder (規劃/22/09 §5.1).
   nv::WrapStrategy wrap = nv::WrapStrategy::kLoop;
   (void)nv::ParseWrapStrategy(g_settings.folder_wrap, &wrap);
+  // The reveal animation owns the last word: at opacity 0 the circles are gone
+  // (and not clickable) even though the folder would allow them.
   inputs.arrows_visible =
       inputs.has_image &&
-      (g_state->folder.size() > 1 || wrap != nv::WrapStrategy::kLoop);
+      (g_state->folder.size() > 1 || wrap != nv::WrapStrategy::kLoop) &&
+      g_arrow_opacity > 0.001f;
+  inputs.arrows_opacity = g_arrow_opacity;
+  inputs.arrows_slide = (1.0f - g_arrow_opacity) * kArrowSlideDip;
   inputs.pill_visible = inputs.has_image && AnimPillVisible();
   inputs.anim.visible = inputs.pill_visible;
   inputs.anim.show_buttons = AnimHasControls();
@@ -3612,6 +3703,12 @@ void WriteLayoutDump(HWND hwnd, bool destroy) {
       << static_cast<int>(std::lround(g_fs_reveal_opacity * 100.0f)) << '\n';
   out << "has_image=" << (g_ui_inputs.has_image ? 1 : 0) << '\n';
   out << "arrows_visible=" << (layout.arrows_visible ? 1 : 0) << '\n';
+  {
+    char arrow_state[64]{};
+    std::snprintf(arrow_state, sizeof(arrow_state), "arrows_opacity=%.2f",
+                  g_arrow_opacity);
+    out << arrow_state << '\n';
+  }
   if (g_state != nullptr) {
     // V3-04b (§7.6): `zoom`/`zoom_percent` are file-relative so a tier cannot
     // masquerade as 100 %; `zoom_raw` keeps the renderer value for the tests
@@ -9274,6 +9371,26 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         TickStripFade(hwnd);
         return 0;
       }
+      if (wparam == kArrowFadeTimer) {
+        TickArrowFade(hwnd);
+        return 0;
+      }
+      if (wparam == kArrowIdleTimer) {
+        KillTimer(hwnd, kArrowIdleTimer);
+        const double idle = NowMs() - g_arrow_last_activity_ms;
+        if (idle >= static_cast<double>(kArrowIdleMs) - 1.0) {
+          HideArrows(hwnd, "idle");
+        } else {
+          // Activity landed between the deadline and this message: re-arm for
+          // what is left instead of hiding the pair the user just asked for.
+          SetTimer(hwnd, kArrowIdleTimer,
+                   static_cast<UINT>(std::max(16.0,
+                                              static_cast<double>(kArrowIdleMs) -
+                                                  idle)),
+                   nullptr);
+        }
+        return 0;
+      }
       if (wparam == kFsRevealTimer) {
         TickFullscreenReveal(hwnd);
         return 0;
@@ -9856,6 +9973,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_MOUSEWHEEL: {
       if (!g_state) return 0;
+      ShowArrows(hwnd, "wheel");
       POINT pt{GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
       ScreenToClient(hwnd, &pt);
       const int delta = GET_WHEEL_DELTA_WPARAM(wparam);
@@ -9919,6 +10037,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_LBUTTONDOWN: {
       if (!g_state) return 0;
+      ShowArrows(hwnd, "click");
       const float x = static_cast<float>(GET_X_LPARAM(lparam));
       const float y = static_cast<float>(GET_Y_LPARAM(lparam));
       // Ctrl+drag exports the file; without Ctrl the image area keeps panning
@@ -10072,6 +10191,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_MOUSEMOVE: {
       if (!g_state) return 0;
+      // Any movement brings the circles back and restarts the idle countdown.
+      ShowArrows(hwnd, "move");
       TRACKMOUSEEVENT track{};
       track.cbSize = sizeof(track);
       track.dwFlags = TME_LEAVE;
@@ -10227,6 +10348,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
       g_strip_hover_index = -1;
       HideStripTooltip(hwnd);
       ScheduleStripHide(hwnd);
+      // The pointer is no longer over the window: the circles slide away at once
+      // instead of waiting for the idle deadline.
+      g_arrow_pointer_inside = false;
+      HideArrows(hwnd, "leave");
       if (g_state && g_state->strip.hovered() !=
                              nv::render::ThumbnailStrip::kNone) {
         const nv::ui::Rect strip = StripRect();
@@ -10449,6 +10574,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
       return DefWindowProcW(hwnd, message, wparam, lparam);
 
     case WM_KEYDOWN:
+      // Any key brings the circles back and restarts the idle countdown.
+      ShowArrows(hwnd, "key");
       if (g_state) {
         const bool ctrl =
             g_test_modifiers.ctrl ||
@@ -11912,6 +12039,8 @@ int APIENTRY wWinMain([[maybe_unused]] HINSTANCE instance,
     return 1;
   }
   g_main_window = hwnd;
+  // The circles start visible and fade out if nothing happens for five seconds.
+  ArmArrowIdle(hwnd);
   ReportStartupPhase("window");
   ApplyWindowFrame(hwnd);
   ApplyThemeState(hwnd);

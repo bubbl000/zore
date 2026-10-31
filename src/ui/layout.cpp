@@ -150,15 +150,19 @@ LayoutFrame ComputeLayout(const LayoutInputs& inputs, float dpi_scale,
   // are laid out only while visible (more than one file), so a single-image
   // folder has neither a rectangle nor a hit target (規劃/22/09 §5.1).
   frame.arrows_visible = inputs.arrows_visible && !frame.content.empty();
+  frame.arrows_opacity = inputs.arrows_opacity;
   if (frame.arrows_visible) {
     const float arrow = metrics::kArrowSize * s;
     const float arrow_gap = metrics::kArrowMargin * s;
+    // Fading out walks the two circles towards the window edges, so the motion
+    // reads as "they leave separately" instead of "they blink out".
+    const float slide = inputs.arrows_slide * s;
     const float center_y = (frame.content.top + frame.content.bottom) * 0.5f -
                            arrow * 0.5f;
-    frame.arrows_left = Rect::FromXYWH(frame.content.left + arrow_gap, center_y,
-                                       arrow, arrow);
-    frame.arrows_right = Rect::FromXYWH(frame.content.right - arrow_gap - arrow,
-                                        center_y, arrow, arrow);
+    frame.arrows_left = Rect::FromXYWH(
+        frame.content.left + arrow_gap - slide, center_y, arrow, arrow);
+    frame.arrows_right = Rect::FromXYWH(
+        frame.content.right - arrow_gap - arrow + slide, center_y, arrow, arrow);
   }
 
   // Drag hint: centred in the content (V3.1-06 §06a). It used to hang near the

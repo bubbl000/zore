@@ -84,6 +84,8 @@ const LayoutFrame& UiRoot::Update(const UiInputs& inputs) {
   layout_inputs.strip_shown = inputs.strip_shown;
   layout_inputs.strip_mode = inputs.strip_mode;
   layout_inputs.arrows_visible = inputs.arrows_visible;
+  layout_inputs.arrows_opacity = inputs.arrows_opacity;
+  layout_inputs.arrows_slide = inputs.arrows_slide;
   layout_inputs.percent_available = inputs.percent_available;
   layout_inputs.info_available = inputs.info_available;
   layout_inputs.rotate_available = inputs.rotate_available;
